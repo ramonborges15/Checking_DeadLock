@@ -18,17 +18,14 @@
 
 using namespace std;
 
-typedef struct linha {
-  char l[100];
-}Linha;
-
 typedef struct thread {
-  vector<struct linha> bloco;
+  vector<char> linha[100];
+  char *nome;
 }Thread;
 
 typedef struct programa {
   vector<int> semaforo;  //0 ou 1
-  struct thread T;
+  vector<struct thread> T;
 }PROGRAMA;
 
 int ler_arquivo();
@@ -44,7 +41,7 @@ int main(int argc, char const *argv[]) {
 
 int ler_arquivo(){
   FILE *fp;
-  char myString[32];
+  char myString[100], *name;
 
   if ((fp = fopen("arquivo.txt","r")) == NULL) {
     printf("ERRO AO ABRIR O ARQUIVO!\n");
@@ -52,7 +49,7 @@ int ler_arquivo(){
   }
 
   //Salva a primeira linha, onde tem-se as informações dos semáforos
-  fgets(myString, 32, fp);
+  fgets(myString, 100, fp);
   char *pedaco = strtok(myString, " ");
 
   while (pedaco != NULL) {
@@ -62,7 +59,26 @@ int ler_arquivo(){
 
   if (p->semaforo.size() > 16) //Caso tenha-se mais do que 16 semaforos
     return -1;
-  else
-    return 0;
+
+  int flagThread = 0;
+  long int numThreads = 0;
+  while(fgets(myString, 100, fp) != NULL) {
+    if(myString[0] == 't'){
+      if (flagThread)
+        flagThread = 0;
+      else{
+        flagThread = 1;
+        numThreads++;
+        p->T.reserve(numThreads);
+      }
+
+      strtok(myString, " ");
+      name = strtok(NULL, " ");
+      p->T[numThreads-1].nome[numThreads-1] = *name;
+    }
+    else{
+
+    }
+  }
 
 }
