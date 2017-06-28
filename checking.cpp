@@ -1,3 +1,16 @@
+/*
+  Trabalho - Detecção de DeadLock
+  Alunos: Ramon Borges e Andrey Contadini
+  -----------------------------------------
+  Informações do Trabalho
+  * Operações atômicas:
+    - P : decrementa o semáforo, bloqueia thread
+    - v : incrementa o semáforo, desbloqueira thread
+
+  Para identação será utilizado o caracter de tabulação '\t'
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
@@ -5,21 +18,31 @@
 
 using namespace std;
 
-void ler_arquivo();
+typedef struct linha {
+  char l[100];
+}Linha;
 
-typedef struct smaforos {
-  vector<int> valor_inicial;  //0 ou 1
-}SMAFOROS;
+typedef struct thread {
+  vector<struct linha> bloco;
+}Thread;
+
+typedef struct programa {
+  vector<int> semaforo;  //0 ou 1
+  struct thread T;
+}PROGRAMA;
+
+int ler_arquivo();
 
 //Inicializando lista de semáforos
-SMAFOROS *lista_semaforos = (SMAFOROS *) malloc(sizeof(SMAFOROS));
+PROGRAMA *p = (PROGRAMA *) malloc(sizeof(PROGRAMA));
 
 int main(int argc, char const *argv[]) {
   ler_arquivo();
+
   return 0;
 }
 
-void ler_arquivo(){
+int ler_arquivo(){
   FILE *fp;
   char myString[32];
 
@@ -32,9 +55,14 @@ void ler_arquivo(){
   fgets(myString, 32, fp);
   char *pedaco = strtok(myString, " ");
 
-  while (pedaco != '\0') {
-    lista_semaforos->valor_inicial.push_back(atoi(pedaco));
-    pedaco = strtok(myString, " ");
+  while (pedaco != NULL) {
+    p->semaforo.push_back(atoi(pedaco));
+    pedaco = strtok(NULL, " ");
   }
+
+  if (p->semaforo.size() > 16) //Caso tenha-se mais do que 16 semaforos
+    return -1;
+  else
+    return 0;
 
 }
