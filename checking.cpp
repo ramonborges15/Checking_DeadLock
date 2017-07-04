@@ -215,7 +215,7 @@ void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> q
   */
 
   //Declaração das variáveis
-  int continuar = 1, t, lin;
+  int continuar = 1, t, lin, todos_semaforos_bloqueados;
   size_t found;
   unsigned long cod = 0, id_semaforo;
   char *c;
@@ -252,19 +252,24 @@ void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> q
         id_semaforo = atoi(c);
         
         if(semaforo_copy.at(id_semaforo) == 0){ //O caso do recurso estar bloqueado
-          //Varrer vetor
+          //Varrer vetor. todos_semaforos_bloqueados = function();
+          if(todos_semaforos_bloqueados)
+            return 1; //Ou seja, houve deadlock.
         }
-        else{
-          semaforo_copy[id_semaforo]--;
-          //varrer vetor
-        }
-        
+        else //senão eu apenas decremento a posição do semáforo.
+          semaforo_copy[id_semaforo]--;        
       }
 
       found = p->T[t].segmento[lin].linha.find("v");
       if (found != std::string::npos) {
         *c = p->T[t].segmento[lin].linha[found+2];
         id_semaforo = atoi(c);
+
+        if(!semaforo_copy[id_semaforo]) //se for 0
+          semaforo_copy[id_semaforo]++;
+        
+        //O caso de tentar dar v em um semaforo com 1. Analisar isso!
+
       }
     }
 
