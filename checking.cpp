@@ -40,53 +40,55 @@ typedef struct indices{
 	int linha;
 }Indices;
 
-//Responsável pelo controle da tabela codificada
-typedef struct tabela{
-  int pos_thr;
-  int pos_linha;
-  int valor;
-}Tabela;
 
 int ler_arquivo();
 void exibir_estrutura();
 void gerar_vetor_base(vector<Indices> *base,int numThreads, vector<int> qtdeLinhas);
-vector<Indices> gerar_permutacoes(vector<Indices> base, int *flag);
-void codificador(vector<Tabela> *tabel_cod);
+vector<Indices> gerar_permutacao(vector<Indices> base, int *flag);
+void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qtdelinhas);
 
 //Inicializando lista de semáforos
 PROGRAMA *p = (PROGRAMA *) malloc(sizeof(PROGRAMA));
 
 int main(int argc, char const *argv[]) {
+  //Declaração de Variáveis
   vector<Indices> base;
 	int numThreads, flag, cont=0;
 	vector<int> qtdelinhas;
 
-	//Inicialização
-	qtdelinhas.push_back(2);
-	qtdelinhas.push_back(2);
-	numThreads = 2;
-
+  //Inicialização
   ler_arquivo();
-	gerar_vetor_base(&base, numThreads, qtdelinhas);
+  
+  //Inicializando valores necessários para funcão gerar vetor base
+  for (int i = 0; i < p->T.size(); ++i) {
+    qtdelinhas.push_back(p->T[i].segmento.size());  
+  }
+  numThreads = p->T.size();
+	// gerar_vetor_base(&base, numThreads, qtdelinhas);
 
-	printf("%lu\n", base.size());
+  //Execução da função que identifica deadlock
+  identificando_deadlock(&base, numThreads,qtdelinhas);
+
+  //Exibição da Informação do Vetor Base
+	printf("%d\n", base.size());
 	for (int i = 0; i < base.size(); ++i) {
 		cout << base[i].thr << base[i].linha << " ";
 	}
 	cout<< " " <<endl;
 	cout<<"--------------------------------------"<<endl;
 
-	while(1){
-		base = gerar_permutacoes(base, &flag);
-		cout << cont+1 << " - ";
-		for (int j = 0; j < base.size(); j++){
-			cout << base.at(j).thr << base.at(j).linha << " ";
-		}
-		cout << " " << endl;
-		cont++;
-		if(!flag)
-			break;
-	}
+  //Exibição da Informação das permutações alcançadas
+	// while(1){
+	// 	base = gerar_permutacoes(base, &flag);
+	// 	cout << cont+1 << " - ";
+	// 	for (int j = 0; j < base.size(); j++){
+	// 		cout << base.at(j).thr << base.at(j).linha << " ";
+	// 	}
+	// 	cout << " " << endl;
+	// 	cont++;
+	// 	if(!flag)
+	// 		break;
+	// }
 
   return 0;
 }
@@ -151,7 +153,7 @@ int ler_arquivo(){
 
 void exibir_estrutura(){
 
-  printf("Número de Threads: %lu \n", p->T.size());
+  printf("Número de Threads: %d \n", p->T.size());
   for (int i = 0; i < p->T.size(); i++) {
     cout << p->T[i].nome;
     //printf("%s", p->T[i].nome);
@@ -178,7 +180,7 @@ void gerar_vetor_base(vector<Indices> *base,int numThreads, vector<int> qtdeLinh
 	return;
 }
 
-vector<Indices> gerar_permutacoes(vector<Indices> base, int *flag) {
+vector<Indices> gerar_permutacao(vector<Indices> base, int *flag) {
 	//Função resposável por gerar apenas uma permutação
 
 	int f = 0;
@@ -203,55 +205,72 @@ vector<Indices> gerar_permutacoes(vector<Indices> base, int *flag) {
 	return base;
 }
 
-void codificador(vector<Tabela> *tabel_cod) {
-  Tabela aux;
+void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qtdelinhas) {
+  /*  O que devo fazer nesta função?
+      1 - Gerar este vetor base(Notando que preciso passar apenas a referência deste).
+      2 - Gerar as permutações
+      3 - Para cada permutação gerada é necessário testar se ela resulta em deadlock ou não.
+        3.1 - Criar uma função que verifica se todos os elementos do vetor são 0.
+            3.1.1 - Se sim 1, senão 0.
+  */
+
+  //Declaração das variáveis
+  int continuar = 1, t, lin;
   size_t found;
-  unsigned long cod = 0, valor;
+  unsigned long cod = 0, id_semaforo;
   char *c;
+  vector<int> semaforo_copy;
 
-  for (int i = 0; i < p->T.size(); i++) {
-    for (int j = 0; j < p->T[i].segmento.size(); j++) {
+  //Área responsável para gerar vetor
+  gerar_vetor_base(base, numThreads, qtdelinhas);
 
-      found = p->T[i].segmento[j].linha.find("if");
+
+  while(continuar) {
+
+    //Fazendo Cópia do estado inicial dos semáforos
+    for (int k = 0; k < p->semaforo.size(); k++)
+      semaforo_copy.push_back(p->semaforo.at(k));
+
+    //Responsável por testar todas as linhas presentes no vetor base
+    for (int j = 0; j < base->size(); j++) {
+      t = base->at(j).thr;
+      lin = base->at(j).linha;
+
+      found = p->T[t].segmento[lin].linha.find("if");
       if (found != std::string::npos) {
-        *c = p->T[i].segmento[j].linha[found+2];
-        valor = atoi(c);
-        aux.valor = 17;
-        aux.pos_thr = i;
-        aux.pos_linha = j;
-        tabel_cod->push_back(aux);
+        //Faz nada
       }
 
-      found = p->T[i].segmento[j].linha.find("else");
+      found = p->T[t].segmento[lin].linha.find("else");
       if (found != std::string::npos) {
-        *c = p->T[i].segmento[j].linha[found+2];
-        valor = atoi(c);
-        aux.valor = 18;
-        aux.pos_thr = i;
-        aux.pos_linha = j;
-        tabel_cod->push_back(aux);
+        //Faz nada
       }
 
-      found = p->T[i].segmento[j].linha.find("p");
+      found = p->T[t].segmento[lin].linha.find("p");
       if (found != std::string::npos) {
-        *c = p->T[i].segmento[j].linha[found+2];
-        valor = atoi(c);
-        aux.valor = -1*(valor+1);
-        aux.pos_thr = i;
-        aux.pos_linha = j;
-        tabel_cod->push_back(aux);
+        *c = p->T[t].segmento[lin].linha[found+2];
+        id_semaforo = atoi(c);
+        
+        if(semaforo_copy.at(id_semaforo) == 0){ //O caso do recurso estar bloqueado
+          //Varrer vetor
+        }
+        else{
+          semaforo_copy[id_semaforo]--;
+          //varrer vetor
+        }
+        
       }
 
-      found = p->T[i].segmento[j].linha.find("v");
+      found = p->T[t].segmento[lin].linha.find("v");
       if (found != std::string::npos) {
-        *c = p->T[i].segmento[j].linha[found+2];
-        valor = atoi(c);
-        aux.valor = (valor+1);
-        aux.pos_thr = i;
-        aux.pos_linha = j;
-        tabel_cod->push_back(aux);
+        *c = p->T[t].segmento[lin].linha[found+2];
+        id_semaforo = atoi(c);
       }
     }
+
+    //Área responsável por gerar permutação
+    //base = gerar_permutacao(base, &continuar);
   }
   return;
 }
+
