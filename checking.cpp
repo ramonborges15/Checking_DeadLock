@@ -266,6 +266,7 @@ int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qt
         id_semaforo = atoi(c);
 
         if(semaforo_copy.at(id_semaforo) == 0){ //O caso do recurso estar bloqueado
+          semaforo_copy[id_semaforo]--;
           todos_semaforos_bloqueados = varrendo_vetor(semaforo_copy);
           if(todos_semaforos_bloqueados)
             return 1; //Ou seja, houve deadlock.
@@ -300,8 +301,8 @@ int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qt
 
 int varrendo_vetor(vector<int> v) {
   for (int i = 0; i < v.size(); i++) {
-    if(v.at(i))
-      return 0; //o vetor possui valores diferentes de zero
+    if(v.at(i) >= 0)
+      return 0; //o vetor possui valores maiores que -1.
   }
   return 1;
 }
