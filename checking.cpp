@@ -45,7 +45,8 @@ int ler_arquivo();
 void exibir_estrutura();
 void gerar_vetor_base(vector<Indices> *base,int numThreads, vector<int> qtdeLinhas);
 vector<Indices> gerar_permutacao(vector<Indices> base, int *flag);
-void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qtdelinhas);
+int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qtdelinhas, int *ponto_de_parada);
+int varrendo_vetor(vector<int> v);
 
 //Inicializando lista de semáforos
 PROGRAMA *p = (PROGRAMA *) malloc(sizeof(PROGRAMA));
@@ -53,42 +54,46 @@ PROGRAMA *p = (PROGRAMA *) malloc(sizeof(PROGRAMA));
 int main(int argc, char const *argv[]) {
   //Declaração de Variáveis
   vector<Indices> base;
-	int numThreads, flag, cont=0;
+	int numThreads, flag, cont=0, resultado, pparada, x,y,q;
 	vector<int> qtdelinhas;
 
   //Inicialização
   ler_arquivo();
-  
+
   //Inicializando valores necessários para funcão gerar vetor base
   for (int i = 0; i < p->T.size(); ++i) {
-    qtdelinhas.push_back(p->T[i].segmento.size());  
+    qtdelinhas.push_back(p->T[i].segmento.size());
   }
   numThreads = p->T.size();
-	// gerar_vetor_base(&base, numThreads, qtdelinhas);
 
   //Execução da função que identifica deadlock
-  identificando_deadlock(&base, numThreads,qtdelinhas);
+  resultado = identificando_deadlock(&base, numThreads, qtdelinhas, &pparada);
 
   //Exibição da Informação do Vetor Base
-	printf("%d\n", base.size());
+  cout << "Vetor Base: " <<endl;
+  printf("%lu\n", base.size());
 	for (int i = 0; i < base.size(); ++i) {
 		cout << base[i].thr << base[i].linha << " ";
 	}
 	cout<< " " <<endl;
 	cout<<"--------------------------------------"<<endl;
 
-  //Exibição da Informação das permutações alcançadas
-	// while(1){
-	// 	base = gerar_permutacoes(base, &flag);
-	// 	cout << cont+1 << " - ";
-	// 	for (int j = 0; j < base.size(); j++){
-	// 		cout << base.at(j).thr << base.at(j).linha << " ";
-	// 	}
-	// 	cout << " " << endl;
-	// 	cont++;
-	// 	if(!flag)
-	// 		break;
-	// }
+  //Exibindo informação do resultado sobre impasses
+  if(resultado) {
+    //Caso ocorra DeadLock
+    cout << "DeadLock :(" <<endl;
+    cout<< "Sequência de impasse: "<<endl;
+    for (int i = 0; i <= pparada; i++) {
+      x = base.at(i).thr;
+      y = base.at(i).linha;
+      cout<< p->T.at(x).nome << ":" << p->T[x].segmento.at(y).linha;
+    }
+    cout <<endl;
+  }
+  else {
+    //Caso não ocorra
+    cout << "Programa livre de impasses." <<endl;
+  }
 
   return 0;
 }
@@ -98,6 +103,8 @@ int ler_arquivo(){
   FILE *fp;
   char myString[100];
   Bloco aux;
+  int q;
+  string s;
 
   if ((fp = fopen("arquivo.txt","r")) == NULL) {
     printf("ERRO AO ABRIR O ARQUIVO!\n");
@@ -136,7 +143,12 @@ int ler_arquivo(){
         pedaco = strtok(myString, " ");
         pedaco = strtok(NULL, " ");
         //strcpy(p->T[numThreads-1].nome, pedaco);
-        p->T[numThreads-1].nome = pedaco;
+
+        //Manobra com objetivo de apagar \n ao final do nome da thread
+        s = pedaco;
+        s.erase(s.length()-1);
+        //Salvando nome
+        p->T[numThreads-1].nome = s;
       }
 
     }
@@ -153,9 +165,9 @@ int ler_arquivo(){
 
 void exibir_estrutura(){
 
-  printf("Número de Threads: %d \n", p->T.size());
+  printf("Número de Threads: %lu \n", p->T.size());
   for (int i = 0; i < p->T.size(); i++) {
-    cout << p->T[i].nome;
+    cout << p->T[i].nome << ":" <<endl;
     //printf("%s", p->T[i].nome);
     for (int j = 0; j < p->T[i].segmento.size(); j++) {
       cout << p->T[i].segmento[j].linha;
@@ -187,6 +199,7 @@ vector<Indices> gerar_permutacao(vector<Indices> base, int *flag) {
 	vector<Indices> aux;
 
 	for (int i = 0; i < base.size()-1; i++){
+
 		if(base.at(i).thr < base.at(i+1).thr){
 			//Realizo a troca
 			aux.push_back(base.at(i));
@@ -205,7 +218,7 @@ vector<Indices> gerar_permutacao(vector<Indices> base, int *flag) {
 	return base;
 }
 
-void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qtdelinhas) {
+int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qtdelinhas, int *ponto_de_parada) {
   /*  O que devo fazer nesta função?
       1 - Gerar este vetor base(Notando que preciso passar apenas a referência deste).
       2 - Gerar as permutações
@@ -226,13 +239,14 @@ void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> q
 
 
   while(continuar) {
-
+    cout << "**Resultado dos Semáforos: "<<endl;
     //Fazendo Cópia do estado inicial dos semáforos
     for (int k = 0; k < p->semaforo.size(); k++)
       semaforo_copy.push_back(p->semaforo.at(k));
 
     //Responsável por testar todas as linhas presentes no vetor base
     for (int j = 0; j < base->size(); j++) {
+      *ponto_de_parada = j;
       t = base->at(j).thr;
       lin = base->at(j).linha;
 
@@ -250,14 +264,14 @@ void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> q
       if (found != std::string::npos) {
         *c = p->T[t].segmento[lin].linha[found+2];
         id_semaforo = atoi(c);
-        
+
         if(semaforo_copy.at(id_semaforo) == 0){ //O caso do recurso estar bloqueado
-          //Varrer vetor. todos_semaforos_bloqueados = function();
+          todos_semaforos_bloqueados = varrendo_vetor(semaforo_copy);
           if(todos_semaforos_bloqueados)
             return 1; //Ou seja, houve deadlock.
         }
         else //senão eu apenas decremento a posição do semáforo.
-          semaforo_copy[id_semaforo]--;        
+          semaforo_copy[id_semaforo]--;
       }
 
       found = p->T[t].segmento[lin].linha.find("v");
@@ -267,15 +281,27 @@ void identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> q
 
         if(!semaforo_copy[id_semaforo]) //se for 0
           semaforo_copy[id_semaforo]++;
-        
+
         //O caso de tentar dar v em um semaforo com 1. Analisar isso!
 
       }
+      for (int i = 0; i < semaforo_copy.size(); i++)
+        cout << semaforo_copy.at(i);
+      cout<< endl;
     }
 
     //Área responsável por gerar permutação
-    //base = gerar_permutacao(base, &continuar);
+    *base = gerar_permutacao(*base, &continuar);
+
+    semaforo_copy.clear();
   }
-  return;
+  return 0;
 }
 
+int varrendo_vetor(vector<int> v) {
+  for (int i = 0; i < v.size(); i++) {
+    if(v.at(i))
+      return 0; //o vetor possui valores diferentes de zero
+  }
+  return 1;
+}
