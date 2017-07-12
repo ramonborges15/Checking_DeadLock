@@ -38,6 +38,7 @@ typedef struct programa {
 typedef struct indices{
 	int thr;
 	int linha;
+  int pula; //Responsável por pular comando else quando o if é executado
 }Indices;
 
 
@@ -61,7 +62,7 @@ int main(int argc, char const *argv[]) {
   ler_arquivo();
 
   //Inicializando valores necessários para funcão gerar vetor base
-  for (int i = 0; i < p->T.size(); ++i) {
+  for (int i = 0; i < p->T.size(); i++) {
     qtdelinhas.push_back(p->T[i].segmento.size());
   }
   numThreads = p->T.size();
@@ -70,24 +71,26 @@ int main(int argc, char const *argv[]) {
   resultado = identificando_deadlock(&base, numThreads, qtdelinhas, &pparada);
 
   //Exibição da Informação do Vetor Base
-  cout << "Vetor Base: " <<endl;
-  printf("%lu\n", base.size());
-	for (int i = 0; i < base.size(); ++i) {
-		cout << base[i].thr << base[i].linha << " ";
-	}
-	cout<< " " <<endl;
-	cout<<"--------------------------------------"<<endl;
+  // cout << "Vetor Base: " <<endl;
+  // printf("%lu\n", base.size());
+	// for (int i = 0; i < base.size(); ++i) {
+	// 	cout << base[i].thr << base[i].linha << " ";
+	// }
+	// cout<< " " <<endl;
+	// cout<<"--------------------------------------"<<endl;
 
   //Exibindo informação do resultado sobre impasses
   if(resultado) {
     //Caso ocorra DeadLock
-    cout << "DeadLock :(" <<endl;
     cout<< "Sequência de impasse: "<<endl;
     for (int i = 0; i <= pparada; i++) {
-      x = base.at(i).thr;
-      y = base.at(i).linha;
-      cout<< p->T.at(x).nome << ":" << p->T[x].segmento.at(y).linha;
+      if(base.at(i).pula == 0) {
+        x = base.at(i).thr;
+        y = base.at(i).linha;
+        cout<< p->T.at(x).nome << ":" << p->T[x].segmento.at(y).linha;
+      }
     }
+
     cout <<endl;
   }
   else {
@@ -128,7 +131,6 @@ int ler_arquivo(){
   while(fgets(myString, 100, fp) != NULL) {
 
     if (strlen(myString) == 1) {
-      printf("Entrou\n");
       continue;
     }
     if(!strncmp(myString, "thread", 6)){
@@ -160,22 +162,6 @@ int ler_arquivo(){
     }
   }
 
-  exibir_estrutura();
-}
-
-void exibir_estrutura(){
-
-  printf("Número de Threads: %lu \n", p->T.size());
-  for (int i = 0; i < p->T.size(); i++) {
-    cout << p->T[i].nome << ":" <<endl;
-    //printf("%s", p->T[i].nome);
-    for (int j = 0; j < p->T[i].segmento.size(); j++) {
-      cout << p->T[i].segmento[j].linha;
-      //printf("%s", p->T[i].segmento[j].linha);
-    }
-  }
-  cout << endl;
-  return;
 }
 
 void gerar_vetor_base(vector<Indices> *base,int numThreads, vector<int> qtdeLinhas){
@@ -229,6 +215,7 @@ int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qt
 
   //Declaração das variáveis
   int continuar = 1, t, lin, todos_semaforos_bloqueados;
+  int comando_ant_eh_if = 1, comando_ant_eh_else = 0, del_cmd_else = 0, novamente = 1;
   size_t found;
   unsigned long cod = 0, id_semaforo;
   char *c;
@@ -236,10 +223,15 @@ int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qt
 
   //Área responsável para gerar vetor
   gerar_vetor_base(base, numThreads, qtdelinhas);
+  //Zerando vetor Pula
+  for (int i = 0; i < base->size(); i++)
+    base->at(i).pula = 0;
+  int flag = 0;
 
 
   while(continuar) {
-    cout << "**Resultado dos Semáforos: "<<endl;
+
+
     //Fazendo Cópia do estado inicial dos semáforos
     for (int k = 0; k < p->semaforo.size(); k++)
       semaforo_copy.push_back(p->semaforo.at(k));
@@ -252,12 +244,21 @@ int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qt
 
       found = p->T[t].segmento[lin].linha.find("if");
       if (found != std::string::npos) {
-        //Faz nada
+        if(!flag)
+          base->at(j).pula = 0;
       }
 
       found = p->T[t].segmento[lin].linha.find("else");
       if (found != std::string::npos) {
-        //Faz nada
+        if (comando_ant_eh_if && !comando_ant_eh_else){
+          if(!flag)
+            base->at(j).pula = 1;
+          del_cmd_else = 1;
+        }
+        else if(comando_ant_eh_else)
+          if(!flag)
+            base->at(j).pula = 0;
+
       }
 
       found = p->T[t].segmento[lin].linha.find("p");
@@ -265,14 +266,51 @@ int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qt
         *c = p->T[t].segmento[lin].linha[found+2];
         id_semaforo = atoi(c);
 
-        if(semaforo_copy.at(id_semaforo) == 0){ //O caso do recurso estar bloqueado
-          semaforo_copy[id_semaforo]--;
-          todos_semaforos_bloqueados = varrendo_vetor(semaforo_copy);
-          if(todos_semaforos_bloqueados)
-            return 1; //Ou seja, houve deadlock.
+        if(comando_ant_eh_if && !comando_ant_eh_else|| comando_ant_eh_if && comando_ant_eh_else) {
+          if(del_cmd_else){
+            if(!flag)
+              base->at(j).pula = 1;
+            del_cmd_else = 0;
+          }
+          else{
+            if(!flag)
+              base->at(j).pula = 0;
+
+            if(semaforo_copy.at(id_semaforo) <= 0){ //O caso do recurso estar bloqueado
+              semaforo_copy[id_semaforo]--;
+              todos_semaforos_bloqueados = varrendo_vetor(semaforo_copy);
+              if(todos_semaforos_bloqueados)
+                return 1; //Ou seja, houve deadlock.
+
+            }
+            else //senão eu apenas decremento a posição do semáforo.
+              semaforo_copy[id_semaforo]--;
+          }
+
         }
-        else //senão eu apenas decremento a posição do semáforo.
+
+        else if(!comando_ant_eh_if && comando_ant_eh_else){
+          if(!flag){
+            base->at(j).pula = 1;
+          }
+          comando_ant_eh_if = 1;
+
+        }
+        else if(comando_ant_eh_if && comando_ant_eh_else){
+
+          if(!flag){
+            base->at(j).pula = 0;
+          }
+
+          if(semaforo_copy.at(id_semaforo) <= 0){ //O caso do recurso estar bloqueado
+            semaforo_copy[id_semaforo]--;
+            todos_semaforos_bloqueados = varrendo_vetor(semaforo_copy);
+            if(todos_semaforos_bloqueados)
+            return 1; //Ou seja, houve deadlock.
+          }
+          else //senão eu apenas decremento a posição do semáforo.
           semaforo_copy[id_semaforo]--;
+        }
       }
 
       found = p->T[t].segmento[lin].linha.find("v");
@@ -280,19 +318,52 @@ int identificando_deadlock(vector<Indices> *base, int numThreads, vector<int> qt
         *c = p->T[t].segmento[lin].linha[found+2];
         id_semaforo = atoi(c);
 
-        if(!semaforo_copy[id_semaforo]) //se for 0
-          semaforo_copy[id_semaforo]++;
+        if(comando_ant_eh_if && !comando_ant_eh_else || comando_ant_eh_if && comando_ant_eh_else) {
+          if(del_cmd_else){
+            if(!flag)
+              base->at(j).pula = 1;
+          }
+          else {
+            if(!flag)
+              base->at(j).pula = 0;
 
-        //O caso de tentar dar v em um semaforo com 1. Analisar isso!
+            if(semaforo_copy[id_semaforo] < 1) //se for 0
+              semaforo_copy[id_semaforo]++;
+
+          }
+        }
+
+        else if(!comando_ant_eh_if && comando_ant_eh_else){
+          if(!flag)
+            base->at(j).pula = 1;
+          comando_ant_eh_if = 1;
+        }
+        else if(comando_ant_eh_if && comando_ant_eh_else){
+          if(!flag)
+            base->at(j).pula = 0;
+          if(semaforo_copy[id_semaforo] < 1) //se for 0
+            semaforo_copy[id_semaforo]++;
+        }
 
       }
-      for (int i = 0; i < semaforo_copy.size(); i++)
-        cout << semaforo_copy.at(i);
-      cout<< endl;
+
     }
 
     //Área responsável por gerar permutação
-    *base = gerar_permutacao(*base, &continuar);
+    if(!novamente){
+      *base = gerar_permutacao(*base, &continuar);
+      flag = 1;
+    }
+    else{
+      comando_ant_eh_if = 0;
+      comando_ant_eh_else = 1;
+      novamente = 0;
+    }
+    //Gerar teste caso expressão do if seja falsa
+    // else {
+    //   existe_if = 0;
+    //   minha_vez = 0;
+    // }
 
     semaforo_copy.clear();
   }
